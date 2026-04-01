@@ -2,40 +2,48 @@
 
 English | [简体中文](./README.zh-CN.md)
 
-A reconstructed Claude Code 2.1.88 project generated from `cli.js.map`, reorganized into a standard npm-based repository that can install dependencies, build successfully, and launch the CLI entrypoint.
+This repository is a reconstructed Claude Code `2.1.88` project derived from `cli.js.map` recovery output and reorganized into a source-first npm project for research, rebuilding, and continued repair work.
 
 ## Overview
 
-This repository exists to turn reverse-sourcemap output into a practical development project that is easier to:
+This repository is intended to make the recovered code easier to:
 
+- inspect and study
 - install with npm
 - build locally
-- run from source
+- run as a CLI after building
 - continue repairing and extending
 
-Verified working today:
+The repository has been cleaned up to keep only the practical project files:
 
-- `npm install`
-- `npm run build`
-- `node dist/cli.js --help`
-- `node dist/cli.js --version`
+- `src/`
+- `scripts/`
+- `vendor/`
+- `package.json`
+- `package-lock.json`
+- `README.md`
+- `README.zh-CN.md`
+
+Large archives, extracted duplicates, PDFs, source maps, `dist/`, and `node_modules/` are intentionally not tracked.
 
 ## Important Notes
 
-This is not the official upstream source repository. It is a recovered and reconstructed project derived from sourcemap output.
+This is not the official upstream repository.
 
-Because reverse-sourcemap recovery is incomplete, the current build includes compatibility layers, generated shims, and stub modules to keep the project installable and buildable. In practice, that means:
+It is a recovered and reconstructed project built from sourcemap-derived output. Because reverse recovery is imperfect, the codebase still contains compatibility layers, generated shims, and stubbed replacements so that the project remains installable and buildable.
 
-- it is suitable for research, debugging, and iterative recovery work
+That means:
+
+- it is suitable for research, debugging, and iterative restoration
 - it is not guaranteed to behave exactly like the official published bundle
-- some private integrations, native paths, or advanced features may still need manual restoration
+- some private integrations, native paths, or advanced features may still require additional manual recovery
 
 ## Requirements
 
 - Node.js `>= 18`
 - npm `>= 9`
 
-Check your environment first:
+Recommended environment check:
 
 ```bash
 node -v
@@ -58,7 +66,7 @@ Install dependencies from the project root:
 npm install
 ```
 
-This uses [package.json](./package.json) and `package-lock.json` to resolve and install dependencies.
+This uses [package.json](./package.json) and `package-lock.json`.
 
 ## Build
 
@@ -68,7 +76,7 @@ Build the project with:
 npm run build
 ```
 
-The build output is written to:
+The build output is generated locally into:
 
 - `dist/cli.js`
 - `dist/src/**`
@@ -77,10 +85,10 @@ The build output is written to:
 The build pipeline is implemented in [scripts/build.mjs](./scripts/build.mjs). It currently handles:
 
 - transpiling `src/` and `vendor/` into Node.js-compatible ESM output
-- rewriting `bun:*` imports into npm/Node-compatible shims
+- rewriting `bun:*` imports into Node/npm-compatible shims
 - resolving `src/*` alias imports
 - generating compatibility stubs for unresolved recovered modules
-- injecting build-time constants required by CLI startup
+- injecting build-time constants required during CLI startup
 
 ## Run
 
@@ -96,7 +104,7 @@ Print the version:
 node dist/cli.js --version
 ```
 
-You can also run through npm:
+Run through npm:
 
 ```bash
 npm start -- --help
@@ -104,7 +112,7 @@ npm start -- --help
 
 ## Install as a Local CLI
 
-To install this project as a global command after building:
+After building, you can install it as a global command:
 
 ```bash
 npm install -g .
@@ -116,7 +124,7 @@ Then run:
 claude-recovered --help
 ```
 
-For local development workflows, `npm link` is also supported:
+For local development, `npm link` also works:
 
 ```bash
 npm link
@@ -142,32 +150,42 @@ node dist/cli.js --version
 │   └── build.mjs
 ├── src/
 ├── vendor/
-└── dist/
+├── README.md
+└── README.zh-CN.md
 ```
 
 Notes:
 
-- `src/`: recovered source files
+- `src/`: recovered main source tree
 - `vendor/`: local compatibility replacements for unavailable native or private modules
 - `scripts/build.mjs`: custom npm build pipeline
-- `dist/`: generated runtime output
+- `dist/`: generated locally during build, not committed
+
+## Verified Workflow
+
+The current repository has been validated for the basic local workflow:
+
+- `npm install`
+- `npm run build`
+- `node dist/cli.js --help`
+- `node dist/cli.js --version`
 
 ## Known Limitations
 
-- some original dependencies do not exist on npm and are currently replaced with local shims
-- some modules could not be fully recovered from the sourcemap and are currently stubbed during build
-- "starts successfully" does not mean "feature-complete parity with the official bundle"
-- private services, private protocols, and native-platform paths may still require additional restoration work
+- some original dependencies are unavailable on npm and are replaced with local shims
+- some modules could not be fully recovered and are still stubbed during build
+- "builds and starts" does not mean full parity with the official bundle
+- private services, private protocols, and native-platform integrations may still need further restoration
 
 ## Troubleshooting
 
 If you hit build or runtime issues, use this order:
 
-1. Confirm that Node.js is at least version 18.
+1. Confirm Node.js is at least version 18.
 2. Remove old build output.
 3. Reinstall dependencies.
 4. Rebuild.
-5. Validate the base CLI entrypoint.
+5. Validate the CLI entrypoint.
 
 Useful commands:
 
@@ -185,8 +203,8 @@ If you want to continue improving this recovered project, the highest-value next
 - fixing startup-time runtime errors
 - replacing generated stubs with real implementations
 - restoring missing private dependency behavior with compatible replacements
-- validating high-value commands against the original bundle behavior
+- validating important commands against the original bundle behavior
 
 ## License and Source Considerations
 
-This repository contains code reconstructed from sourcemap-derived output. Before redistributing or publishing it, make sure you review the original project's license, copyright, and usage terms.
+This repository contains code reconstructed from sourcemap-derived output. Before redistributing or publishing it, review the original project's license, copyright, and usage terms carefully.
