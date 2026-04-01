@@ -1,9 +1,44 @@
-/**
- * Recovered query source types.
- *
- * The original project appears to have carried a richer enum-like catalog here,
- * but the recovered tree only needs a permissive string type at compile time.
- */
+export type QuerySourceLiteral =
+	| 'agent:builtin:fork'
+	| 'agent:custom'
+	| 'agent_creation'
+	| 'agent_summary'
+	| 'auto_dream'
+	| 'auto_mode'
+	| 'auto_mode_critique'
+	| 'away_summary'
+	| 'bash_extract_prefix'
+	| 'chrome_mcp'
+	| 'compact'
+	| 'extract_memories'
+	| 'feedback'
+	| 'generate_session_title'
+	| 'hook_agent'
+	| 'hook_prompt'
+	| 'insights'
+	| 'magic_docs'
+	| 'marble_origami'
+	| 'mcp_datetime_parse'
+	| 'memdir_relevance'
+	| 'model_validation'
+	| 'permission_explainer'
+	| 'prompt_suggestion'
+	| 'rename_generate_name'
+	| 'repl_main_thread'
+	| 'sdk'
+	| 'session_memory'
+	| 'session_search'
+	| 'side_question'
+	| 'skill_improvement_apply'
+	| 'speculation'
+	| 'teleport_generate_title'
+	| 'tool_use_summary_generation'
+	| 'verification_agent'
+	| 'web_fetch_apply'
+	| 'web_search_tool'
 
-export type QuerySource = string
+export type QuerySource =
+	| QuerySourceLiteral
+	| `agent:${string}`
+	| `repl_main_thread:${string}`
 

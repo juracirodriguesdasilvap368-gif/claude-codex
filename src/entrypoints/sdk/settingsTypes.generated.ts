@@ -1,2 +1,4 @@
-export type Settings = Record<string, unknown>
+import type { SettingsJson } from '../../utils/settings/types.js'
+
+export type Settings = SettingsJson
 
