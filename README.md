@@ -26,6 +26,36 @@ The repository has been cleaned up to keep only the practical project files:
 
 Large archives, extracted duplicates, PDFs, source maps, `dist/`, and `node_modules/` are intentionally not tracked.
 
+## Status
+
+Current project status:
+
+- source tree recovered and organized
+- npm dependency installation works
+- local build works
+- CLI entrypoint can be generated and launched
+- repository cleaned up into a source-only layout
+
+This project should currently be viewed as a research-grade rebuild, not a production-equivalent upstream mirror.
+
+## Features
+
+What this repository already provides:
+
+- a recovered TypeScript source tree under `src/`
+- a reproducible npm-based build flow
+- local compatibility replacements under `vendor/`
+- a Node.js-friendly rebuild pipeline in `scripts/build.mjs`
+- a cleaner repository layout focused on source, not archives
+
+Useful for:
+
+- reverse engineering and source study
+- command behavior tracing
+- runtime debugging
+- incremental restoration of missing modules
+- experimenting with rebuild and compatibility strategies
+
 ## Important Notes
 
 This is not the official upstream repository.
@@ -169,6 +199,16 @@ The current repository has been validated for the basic local workflow:
 - `npm run build`
 - `node dist/cli.js --help`
 - `node dist/cli.js --version`
+
+## Roadmap
+
+Recommended next steps for this repository:
+
+- reduce stub usage by restoring higher-value missing modules
+- document core architecture areas such as bootstrap, commands, tools, and UI
+- add repeatable validation scripts for build and smoke-test checks
+- identify which features are fully usable, partially usable, or still blocked
+- optionally split archival/research materials into a separate branch or release asset workflow
 
 ## Known Limitations
 
