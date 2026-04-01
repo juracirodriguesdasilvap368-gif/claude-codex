@@ -3,6 +3,10 @@ import type {
   ContextCollapseSnapshotEntry,
 } from '../../types/logs.js'
 import {
+  recordContextCollapseCommit,
+  recordContextCollapseSnapshot,
+} from '../../utils/sessionStorage.js'
+import {
   createDefaultStore,
   createStatsFromEntries,
   getContextCollapseStore,
@@ -22,4 +26,27 @@ export function restoreFromEntries(
     snapshot,
     stats: createStatsFromEntries(commits, snapshot),
   })
+}
+
+export async function persistCommit(
+  commit: Pick<
+    ContextCollapseCommitEntry,
+    | 'collapseId'
+    | 'summaryUuid'
+    | 'summaryContent'
+    | 'summary'
+    | 'firstArchivedUuid'
+    | 'lastArchivedUuid'
+  >,
+): Promise<void> {
+  await recordContextCollapseCommit(commit)
+}
+
+export async function persistSnapshot(
+  snapshot: Pick<
+    ContextCollapseSnapshotEntry,
+    'staged' | 'armed' | 'lastSpawnTokens'
+  >,
+): Promise<void> {
+  await recordContextCollapseSnapshot(snapshot)
 }

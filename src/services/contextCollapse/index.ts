@@ -1,7 +1,9 @@
 import type { AssistantMessage, Message } from '../../types/message.js'
+import { randomUUID } from '../../utils/crypto.js'
 import { createSignal } from '../../utils/signal.js'
 import { isPromptTooLongMessage } from '../api/errors.js'
 import { projectView } from './operations.js'
+import { persistCommit, persistSnapshot } from './persist.js'
 import {
   createDefaultStore,
   createStatsFromEntries,
@@ -114,9 +116,9 @@ export function recoverFromOverflow(messages: Message[]): {
   const commit = {
     type: 'marble-origami-commit' as const,
     sessionId: current.snapshot.sessionId,
-    collapseId: `${Date.now()}`,
-    summaryUuid: `collapse-${Date.now()}`,
-    summaryContent: first.summary,
+    collapseId: String(Date.now()),
+    summaryUuid: randomUUID(),
+    summaryContent: `<collapsed id="${Date.now()}">${first.summary}</collapsed>`,
     summary: first.summary,
     firstArchivedUuid: first.startUuid,
     lastArchivedUuid: first.endUuid,
@@ -135,6 +137,20 @@ export function recoverFromOverflow(messages: Message[]): {
     stats: createStatsFromEntries(next.commits, next.snapshot),
   })
   notifyChange()
+
+  void persistCommit({
+    collapseId: commit.collapseId,
+    summaryUuid: commit.summaryUuid,
+    summaryContent: commit.summaryContent,
+    summary: commit.summary,
+    firstArchivedUuid: commit.firstArchivedUuid,
+    lastArchivedUuid: commit.lastArchivedUuid,
+  })
+  void persistSnapshot({
+    staged: next.snapshot?.staged ?? [],
+    armed: next.snapshot?.armed ?? false,
+    lastSpawnTokens: next.snapshot?.lastSpawnTokens ?? 0,
+  })
 
   return {
     committed: 1,
