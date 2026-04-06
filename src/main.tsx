@@ -4037,6 +4037,25 @@ async function run(): Promise<CommanderCommand> {
     });
   }
 
+  // claude web — browser-based Web UI for Claude Code
+  program.command('web').description('Start a browser-based Web UI for Claude Code').option('--port <number>', 'HTTP port', '3000').option('--host <string>', 'Bind address', '127.0.0.1').option('--auth-token <token>', 'Bearer token for API auth').option('--web-dir <path>', 'Path to built frontend assets directory').action(async (opts: {
+    port: string;
+    host: string;
+    authToken?: string;
+    webDir?: string;
+  }) => {
+    const { startWebServer } = await import('./web/server.js');
+    const { resolve: resolvePath } = await import('path');
+    const webDir = opts.webDir ?? resolvePath(process.cwd(), 'web-ui', 'dist');
+    await startWebServer({
+      port: parseInt(opts.port, 10),
+      host: opts.host,
+      authToken: opts.authToken,
+      cwd: process.cwd(),
+      webDir,
+    });
+  });
+
   // `claude ssh <host> [dir]` — registered here only so --help shows it.
   // The actual interactive flow is handled by early argv rewriting in main()
   // (parallels the DIRECT_CONNECT/cc:// pattern above). If commander reaches

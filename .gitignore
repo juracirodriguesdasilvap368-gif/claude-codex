@@ -5,3 +5,13 @@ extracted/
 *.zip
 *.pdf
 *.map
+
+# Web UI build output
+web-ui/node_modules
+web-ui/dist
+
+# Secrets — never commit
+.env
+.env.*
+*.local
+settings.local.json

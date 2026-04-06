@@ -244,6 +244,26 @@ async function main(): Promise<void> {
     return;
   }
 
+  // Fast-path for `claude web`: local HTTP + WebSocket server for browser-based UI.
+  if (args[0] === 'web') {
+    profileCheckpoint('cli_web_path');
+    const { startWebServer } = await import('../web/server.js');
+    const { resolve: pathResolve, dirname } = await import('node:path');
+    const portIdx = args.indexOf('--port');
+    const port = portIdx !== -1 ? parseInt(args[portIdx + 1]!, 10) : 3000;
+    const hostIdx = args.indexOf('--host');
+    const host = hostIdx !== -1 ? (args[hostIdx + 1] ?? '127.0.0.1') : '127.0.0.1';
+    const tokenIdx = args.indexOf('--auth-token');
+    const authToken = tokenIdx !== -1 ? args[tokenIdx + 1] : undefined;
+    // Resolve web-ui dist relative to this entrypoint
+    const webDirIdx = args.indexOf('--web-dir');
+    const webDir = webDirIdx !== -1
+      ? args[webDirIdx + 1]
+      : pathResolve(dirname(new URL(import.meta.url).pathname), '../../web-ui/dist');
+    await startWebServer({ port, host, authToken, cwd: process.cwd(), webDir });
+    return;
+  }
+
   // Fast-path for --worktree --tmux: exec into tmux before loading full CLI
   const hasTmuxFlag = args.includes('--tmux') || args.includes('--tmux=classic');
   if (hasTmuxFlag && (args.includes('-w') || args.includes('--worktree') || args.some(a => a.startsWith('--worktree=')))) {

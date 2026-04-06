@@ -114,6 +114,6 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "esbuild": "^0.27.4"
+    "esbuild": "^0.27.7"
   }
 }
