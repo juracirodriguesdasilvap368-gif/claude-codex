@@ -156,7 +156,9 @@ class SessionProcessManager {
       '--print',
       '--input-format', 'stream-json',
       '--output-format', 'stream-json',
+      '--include-partial-messages',
       '--replay-user-messages',
+      '--model', session.model,
     ]
 
     const child = spawn(this.execPath, args, {

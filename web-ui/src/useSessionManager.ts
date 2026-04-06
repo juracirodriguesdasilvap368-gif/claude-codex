@@ -10,6 +10,11 @@ function uid(): string {
   return `msg-${++nextId}-${Date.now()}`
 }
 
+// Reconnect config
+const RECONNECT_BASE_MS = 1000
+const RECONNECT_MAX_MS = 30000
+const RECONNECT_MAX_ATTEMPTS = 10
+
 export interface SessionHandle {
   id: string
   status: ConnectionStatus
@@ -44,6 +49,10 @@ export function useSessionManager(): UseSessionManagerReturn {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
   const [providers, setProviders] = useState<ProviderInfo[]>([])
   const wsRefs = useRef<Map<string, WebSocket>>(new Map())
+  const reconnectAttempts = useRef<Map<string, number>>(new Map())
+  const reconnectTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
+  // Store wsUrl per session for reconnection
+  const wsUrlRefs = useRef<Map<string, string>>(new Map())
 
   // Fetch providers on mount
   useEffect(() => {
@@ -69,6 +78,31 @@ export function useSessionManager(): UseSessionManagerReturn {
     )
   }, [])
 
+  // For streaming: append text to the last assistant message if it exists,
+  // otherwise create a new one. This merges incremental chunks into a single bubble.
+  const appendAssistantText = useCallback((sessionId: string, text: string) => {
+    setSessions(prev =>
+      prev.map(s => {
+        if (s.id !== sessionId) return s
+        const msgs = [...s.messages]
+        const last = msgs[msgs.length - 1]
+        if (last && last.type === 'assistant') {
+          // Append to existing assistant message
+          msgs[msgs.length - 1] = { ...last, content: last.content + text }
+          return { ...s, messages: msgs }
+        }
+        // Create new assistant message
+        msgs.push({
+          id: uid(),
+          type: 'assistant',
+          content: text,
+          timestamp: Date.now(),
+        })
+        return { ...s, messages: msgs }
+      })
+    )
+  }, [])
+
   const handleSDKMessage = useCallback((sessionId: string, data: SDKMessage) => {
     switch (data.type) {
       case 'assistant': {
@@ -76,12 +110,8 @@ export function useSessionManager(): UseSessionManagerReturn {
         if (!Array.isArray(content)) break
         for (const block of content) {
           if (block.type === 'text') {
-            addMessageToSession(sessionId, {
-              id: uid(),
-              type: 'assistant',
-              content: block.text,
-              timestamp: Date.now(),
-            })
+            // Use streaming merge — append to last assistant bubble
+            appendAssistantText(sessionId, block.text)
           } else if (block.type === 'tool_use') {
             addMessageToSession(sessionId, {
               id: uid(),
@@ -172,30 +202,80 @@ export function useSessionManager(): UseSessionManagerReturn {
         break
       }
     }
-  }, [addMessageToSession, updateSession])
+  }, [addMessageToSession, appendAssistantText, updateSession])
 
   const connectWS = useCallback((sessionId: string, wsUrl: string) => {
-    const ws = new WebSocket(wsUrl.replace(/ws:\/\/[^/]+/, `ws://${location.host}`))
-    wsRefs.current.set(sessionId, ws)
+    // Store URL for reconnection
+    wsUrlRefs.current.set(sessionId, wsUrl)
+    // Reset reconnect counter on fresh connect
+    reconnectAttempts.current.set(sessionId, 0)
 
-    ws.onopen = () => {
-      updateSession(sessionId, { status: 'connected' })
-    }
+    const doConnect = () => {
+      const resolvedUrl = wsUrl.replace(/ws:\/\/[^/]+/, `ws://${location.host}`)
+      const ws = new WebSocket(resolvedUrl)
+      wsRefs.current.set(sessionId, ws)
 
-    ws.onclose = () => {
-      updateSession(sessionId, { status: 'disconnected' })
-      wsRefs.current.delete(sessionId)
-    }
+      ws.onopen = () => {
+        updateSession(sessionId, { status: 'connected' })
+        reconnectAttempts.current.set(sessionId, 0) // reset on success
+        addMessageToSession(sessionId, {
+          id: uid(),
+          type: 'system',
+          content: reconnectAttempts.current.get(sessionId) === 0
+            ? '' // suppress on first connect
+            : 'Reconnected',
+          timestamp: Date.now(),
+        })
+      }
 
-    ws.onmessage = (e) => {
-      try {
-        const msg = JSON.parse(e.data)
-        handleSDKMessage(sessionId, msg)
-      } catch {
-        // ignore
+      ws.onclose = (e) => {
+        wsRefs.current.delete(sessionId)
+        // Don't reconnect if session was manually deleted (code 1000)
+        if (e.code === 1000) {
+          updateSession(sessionId, { status: 'disconnected' })
+          return
+        }
+        // Attempt reconnect with exponential backoff
+        const attempts = reconnectAttempts.current.get(sessionId) ?? 0
+        if (attempts < RECONNECT_MAX_ATTEMPTS) {
+          const delay = Math.min(RECONNECT_BASE_MS * Math.pow(2, attempts), RECONNECT_MAX_MS)
+          updateSession(sessionId, { status: 'connecting' })
+          addMessageToSession(sessionId, {
+            id: uid(),
+            type: 'system',
+            content: `Connection lost. Reconnecting in ${(delay / 1000).toFixed(0)}s... (${attempts + 1}/${RECONNECT_MAX_ATTEMPTS})`,
+            timestamp: Date.now(),
+          })
+          reconnectAttempts.current.set(sessionId, attempts + 1)
+          const timer = setTimeout(doConnect, delay)
+          reconnectTimers.current.set(sessionId, timer)
+        } else {
+          updateSession(sessionId, { status: 'disconnected' })
+          addMessageToSession(sessionId, {
+            id: uid(),
+            type: 'system',
+            content: 'Connection lost. Max reconnect attempts reached.',
+            timestamp: Date.now(),
+          })
+        }
+      }
+
+      ws.onerror = () => {
+        // onclose will fire after this, handled there
+      }
+
+      ws.onmessage = (e) => {
+        try {
+          const msg = JSON.parse(e.data)
+          handleSDKMessage(sessionId, msg)
+        } catch {
+          // ignore
+        }
       }
     }
-  }, [handleSDKMessage, updateSession])
+
+    doConnect()
+  }, [handleSDKMessage, updateSession, addMessageToSession])
 
   const createSession = useCallback(async (provider?: string, model?: string) => {
     try {
@@ -226,10 +306,18 @@ export function useSessionManager(): UseSessionManagerReturn {
   }, [])
 
   const deleteSession = useCallback(async (id: string) => {
-    // Close WS
+    // Cancel any pending reconnect
+    const timer = reconnectTimers.current.get(id)
+    if (timer) {
+      clearTimeout(timer)
+      reconnectTimers.current.delete(id)
+    }
+    reconnectAttempts.current.delete(id)
+    wsUrlRefs.current.delete(id)
+    // Close WS with clean close code
     const ws = wsRefs.current.get(id)
     if (ws) {
-      ws.close()
+      ws.close(1000, 'Session deleted')
       wsRefs.current.delete(id)
     }
     // Delete on server
@@ -310,7 +398,8 @@ export function useSessionManager(): UseSessionManagerReturn {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      wsRefs.current.forEach(ws => ws.close())
+      wsRefs.current.forEach(ws => ws.close(1000, 'Unmount'))
+      reconnectTimers.current.forEach(t => clearTimeout(t))
     }
   }, [])
 
